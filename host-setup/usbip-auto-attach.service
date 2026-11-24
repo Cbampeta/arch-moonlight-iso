@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto-attach USB/IP devices exported by Arch Moonlight ThinClient over Tailscale
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/usbip-auto-attach.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

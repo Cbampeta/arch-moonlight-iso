@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+echo "=== usbipd Service ==="
+systemctl is-active usbipd.service || true
+echo ""
+echo "=== Local USB Devices ==="
+usbip list -l 2>/dev/null || true
+echo ""
+echo "=== Recent USB/IP Auto-Export Logs ==="
+tail -n 20 /var/log/usbip-auto.log 2>/dev/null || echo "(no logs yet)"

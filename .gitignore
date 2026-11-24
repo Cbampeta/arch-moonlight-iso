@@ -1,0 +1,11 @@
+# Build artifacts & generated archiso directories
+work/
+out/
+build-profile/
+
+# Generated disk images & encrypted state containers
+*.iso
+*.luks
+
+# Local directory indexes
+INDEX.md

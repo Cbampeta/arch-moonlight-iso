@@ -1,0 +1,11 @@
+[Unit]
+Description=Initial scan and USB/IP export of already-connected eligible USB devices
+After=usbipd.service local-fs.target
+Wants=usbipd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usbip-auto-export.sh scan
+
+[Install]
+WantedBy=multi-user.target

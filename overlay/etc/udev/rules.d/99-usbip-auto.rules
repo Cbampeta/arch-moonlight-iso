@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", RUN+="/usr/bin/systemd-run --no-block --collect /usr/local/bin/usbip-auto-export.sh add %k"
+ACTION=="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", RUN+="/usr/bin/systemd-run --no-block --collect /usr/local/bin/usbip-auto-export.sh remove %k"

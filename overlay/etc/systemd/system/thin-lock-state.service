@@ -1,0 +1,12 @@
+[Unit]
+Description=Cleanly lock and unmount encrypted ThinClient persistence on shutdown
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/true
+ExecStop=/usr/local/bin/thin-lock-state
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -u
+
+VENTOY_MNT="/run/ventoy"
+STATE_MNT="/run/state"
+MAPPER_NAME="thinclient_state"
+MOONLIGHT_CFG_DIR="/home/thin/.config/Moonlight Game Streaming Project"
+
+systemctl stop tailscaled.service 2>/dev/null || true
+sync
+
+for target in \
+    /var/lib/tailscale \
+    /etc/NetworkManager/system-connections \
+    "${MOONLIGHT_CFG_DIR}" \
+    /etc/thinclient/custom; do
+    if mountpoint -q "${target}" 2>/dev/null; then
+        umount "${target}" 2>/dev/null || umount -l "${target}" 2>/dev/null || true
+    fi
+done
+
+if mountpoint -q "${STATE_MNT}" 2>/dev/null; then
+    umount "${STATE_MNT}" 2>/dev/null || umount -l "${STATE_MNT}" 2>/dev/null || true
+fi
+
+if [[ -b "/dev/mapper/${MAPPER_NAME}" ]]; then
+    cryptsetup close "${MAPPER_NAME}" 2>/dev/null || true
+fi
+
+if mountpoint -q "${VENTOY_MNT}" 2>/dev/null; then
+    umount "${VENTOY_MNT}" 2>/dev/null || umount -l "${VENTOY_MNT}" 2>/dev/null || true
+fi
+
+sync

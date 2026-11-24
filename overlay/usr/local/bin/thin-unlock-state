@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STATE_FILE_NAME="arch-moonlight-state.luks"
+VENTOY_MNT="/run/ventoy"
+STATE_MNT="/run/state"
+MAPPER_NAME="thinclient_state"
+THIN_USER="thin"
+THIN_HOME="/home/${THIN_USER}"
+MOONLIGHT_CFG_DIR="${THIN_HOME}/.config/Moonlight Game Streaming Project"
+
+if mountpoint -q "${STATE_MNT}"; then
+    echo "[OK] Encrypted persistence is already unlocked."
+    exit 0
+fi
+
+mkdir -p "${VENTOY_MNT}" "${STATE_MNT}"
+udevadm settle --timeout=5 || true
+
+find_and_mount_ventoy() {
+    if [[ -f "${VENTOY_MNT}/${STATE_FILE_NAME}" ]]; then
+        return 0
+    fi
+
+    local candidates=()
+    [[ -b /dev/mapper/VentoyPart ]] && candidates+=("/dev/mapper/VentoyPart")
+    [[ -b /dev/disk/by-label/Ventoy ]] && candidates+=("/dev/disk/by-label/Ventoy")
+    local by_lbl
+    by_lbl="$(blkid -L Ventoy 2>/dev/null || true)"
+    [[ -n "${by_lbl}" && -b "${by_lbl}" ]] && candidates+=("${by_lbl}")
+
+    # Fallback: scan exfat/vfat/ntfs/ext4 partitions
+    while IFS= read -r dev; do
+        [[ -b "${dev}" ]] && candidates+=("${dev}")
+    done < <(lsblk -rnpo NAME,FSTYPE | awk '$2 ~ /^(exfat|vfat|ntfs|ext4)$/ {print $1}')
+
+    local seen=""
+    for dev in "${candidates[@]}"; do
+        [[ "${seen}" == *"|${dev}|"* ]] && continue
+        seen="${seen}|${dev}|"
+
+        # Already mounted somewhere?
+        local existing_mnt
+        existing_mnt="$(findmnt -rn -o TARGET -S "${dev}" 2>/dev/null | head -n1 || true)"
+        if [[ -n "${existing_mnt}" ]]; then
+            if [[ -f "${existing_mnt}/${STATE_FILE_NAME}" ]]; then
+                mount --bind "${existing_mnt}" "${VENTOY_MNT}" && return 0
+            fi
+            continue
+        fi
+
+        if mount -o rw "${dev}" "${VENTOY_MNT}" 2>/dev/null; then
+            if [[ -f "${VENTOY_MNT}/${STATE_FILE_NAME}" ]]; then
+                return 0
+            fi
+            umount "${VENTOY_MNT}" 2>/dev/null || true
+        fi
+    done
+
+    return 1
+}
+
+echo "[*] Searching for encrypted container (${STATE_FILE_NAME}) on Ventoy drive..."
+if ! find_and_mount_ventoy; then
+    echo "[!] Container ${STATE_FILE_NAME} not found (running in ephemeral mode)."
+    exit 1
+fi
+
+LUKS_PATH="${VENTOY_MNT}/${STATE_FILE_NAME}"
+echo "[*] Found container: ${LUKS_PATH}"
+
+if [[ ! -b "/dev/mapper/${MAPPER_NAME}" ]]; then
+    opened=0
+    for attempt in 1 2 3; do
+        echo "Unlocking persistence (Tailscale / Moonlight / Wi-Fi) [attempt ${attempt}/3]:"
+        if cryptsetup open "${LUKS_PATH}" "${MAPPER_NAME}"; then
+            opened=1
+            break
+        fi
+        echo "[!] Incorrect passphrase."
+    done
+    if [[ "${opened}" -ne 1 ]]; then
+        echo "[!] Failed to unlock persistence. Continuing in ephemeral mode."
+        umount "${VENTOY_MNT}" 2>/dev/null || true
+        exit 1
+    fi
+fi
+
+mount -o noatime "/dev/mapper/${MAPPER_NAME}" "${STATE_MNT}"
+
+# Ensure directory structure inside the encrypted container
+mkdir -p \
+    "${STATE_MNT}/tailscale" \
+    "${STATE_MNT}/NetworkManager" \
+    "${STATE_MNT}/moonlight" \
+    "${STATE_MNT}/custom"
+
+chmod 700 "${STATE_MNT}/NetworkManager"
+chmod 600 "${STATE_MNT}/NetworkManager/"* 2>/dev/null || true
+chown -R "${THIN_USER}:${THIN_USER}" "${STATE_MNT}/moonlight"
+
+# 1. Tailscale
+systemctl stop tailscaled.service 2>/dev/null || true
+mkdir -p /var/lib/tailscale
+mount --bind "${STATE_MNT}/tailscale" /var/lib/tailscale
+systemctl start tailscaled.service
+
+# 2. NetworkManager (Wi-Fi / Ethernet profiles)
+mkdir -p /etc/NetworkManager/system-connections
+mount --bind "${STATE_MNT}/NetworkManager" /etc/NetworkManager/system-connections
+chmod 700 /etc/NetworkManager/system-connections
+chmod 600 /etc/NetworkManager/system-connections/* 2>/dev/null || true
+nmcli connection reload 2>/dev/null || true
+
+# 3. Moonlight (pairing & settings)
+mkdir -p "${MOONLIGHT_CFG_DIR}"
+chown -R "${THIN_USER}:${THIN_USER}" "${THIN_HOME}/.config"
+mount --bind "${STATE_MNT}/moonlight" "${MOONLIGHT_CFG_DIR}"
+chown -R "${THIN_USER}:${THIN_USER}" "${MOONLIGHT_CFG_DIR}"
+
+# 4. Custom configuration (e.g., usbip-ignore.conf)
+mkdir -p /etc/thinclient/custom
+mount --bind "${STATE_MNT}/custom" /etc/thinclient/custom
+
+# 5. Ensure usbipd is running
+systemctl start usbipd.service 2>/dev/null || true
+
+echo "[OK] Encrypted persistence mounted! Wi-Fi, Tailscale, and Moonlight restored."

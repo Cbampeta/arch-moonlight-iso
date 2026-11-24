@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -u
+
+# Prevent display sleep/blanking during streaming
+xset s off 2>/dev/null || true
+xset -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+
+# Start PipeWire audio if not already running via systemd --user
+if ! pgrep -u "$USER" -x pipewire >/dev/null 2>&1; then
+    pipewire &
+    sleep 0.3
+    pipewire-pulse &
+    wireplumber &
+fi
+
+# Minimalist Openbox with ZERO intercepted keybindings (everything goes to Moonlight)
+openbox --config-file /etc/thinclient/openbox-rc.xml &
+OB_PID=$!
+sleep 0.4
+
+MOONLIGHT_BIN="$(command -v moonlight-qt || command -v moonlight || true)"
+if [[ -n "${MOONLIGHT_BIN}" ]]; then
+    "${MOONLIGHT_BIN}"
+else
+    echo "Error: moonlight-qt not found!" >&2
+    sleep 3
+fi
+
+kill "${OB_PID}" 2>/dev/null || true
+wait "${OB_PID}" 2>/dev/null || true

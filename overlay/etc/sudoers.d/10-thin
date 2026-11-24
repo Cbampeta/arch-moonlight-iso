@@ -1,0 +1,2 @@
+%wheel ALL=(ALL:ALL) ALL
+thin ALL=(root) NOPASSWD: /usr/local/bin/thin-unlock-state, /usr/local/bin/usbip-status, /usr/local/bin/usbip-scan

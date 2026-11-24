@@ -1,0 +1,91 @@
+# ==============================================================================
+# Arch Moonlight ThinClient - Package List (x86_64)
+# Minimalist, universal, low-RAM optimized profile
+# ==============================================================================
+
+# Base & Live boot (archiso + BIOS/UEFI)
+base
+linux
+linux-firmware
+mkinitcpio
+mkinitcpio-archiso
+syslinux
+grub
+efibootmgr
+amd-ucode
+intel-ucode
+
+# Encryption, disks & filesystems (Ventoy exFAT + LUKS2 + archinstall)
+cryptsetup
+lvm2
+dosfstools
+e2fsprogs
+exfatprogs
+ntfs-3g
+btrfs-progs
+gptfdisk
+parted
+
+# System tools, troubleshooting & archinstall
+archinstall
+arch-install-scripts
+sudo
+usbutils
+pciutils
+kmod
+kbd
+less
+nano
+htop
+tmux
+curl
+wget
+openssh
+rsync
+git
+
+# Networking & VPN (NetworkManager + Wi-Fi + Tailscale)
+networkmanager
+iwd
+wpa_supplicant
+tailscale
+iproute2
+iputils
+bind
+ethtool
+iw
+
+# USB/IP (automatic hot-plug export)
+usbip
+
+# Minimalist X11 + Openbox (zero intercepted keybindings)
+xorg-server
+xorg-xinit
+xorg-xrandr
+xorg-xset
+openbox
+ttf-dejavu
+
+# Universal video drivers & hardware decoding (old and modern PCs)
+mesa
+vulkan-intel
+vulkan-radeon
+libva-intel-driver
+intel-media-driver
+libva-mesa-driver
+xf86-video-intel
+xf86-video-amdgpu
+xf86-video-ati
+xf86-video-nouveau
+xf86-video-vesa
+xf86-input-libinput
+
+# Lightweight audio (PipeWire)
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+alsa-utils
+
+# Moonlight client
+moonlight-qt
